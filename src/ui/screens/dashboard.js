@@ -10,7 +10,6 @@ import { createCountriesLayer, setHighlightedCountries } from '../globe/countrie
 import { createHudOverlay } from '../globe/hudOverlay.js';
 import { renderDrawerControls, readParamsFromUI } from '../controls.js';
 import { renderResultsContent } from '../results.js';
-import { renderLoading } from './loading.js';
 
 let el = null;
 let lastResult = null;

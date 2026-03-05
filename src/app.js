@@ -6,7 +6,7 @@
 import { STATES, transition, onStateChange } from './ui/stateMachine.js';
 import { renderBoot } from './ui/screens/boot.js';
 import { renderSelect } from './ui/screens/select.js';
-import { renderLoading } from './ui/screens/loading.js';
+import { renderRunLoading, renderResetLoading } from './ui/screens/loading.js';
 import { renderDashboard } from './ui/screens/dashboard.js';
 import { runMonteCarlo } from './model/monteCarlo.js';
 
@@ -32,10 +32,8 @@ onStateChange((newState, prevState, data) => {
       renderSelect(container);
       break;
     case STATES.LOADING:
-      // loading is now used only for run/reset actions
-      renderLoading(container, () => {
-        if (data.action === 'run') {
-          // perform simulation then return to dashboard with result
+      if (data.action === 'run') {
+        renderRunLoading(container, data.params?.nTrials ?? 1000, () => {
           const t0 = performance.now();
           const result = runMonteCarlo(data.params);
           const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
@@ -46,10 +44,12 @@ onStateChange((newState, prevState, data) => {
             runResult: result,
             runElapsed: elapsed,
           });
-        } else if (data.action === 'reset') {
+        });
+      } else if (data.action === 'reset') {
+        renderResetLoading(container, () => {
           transition(STATES.SELECT);
-        }
-      });
+        });
+      }
       break;
     case STATES.DASHBOARD:
       renderDashboard(container);

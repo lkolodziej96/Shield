@@ -55,16 +55,18 @@ html, body {
 /* ============================================================
    S0 — Boot Screen
    ============================================================ */
+@keyframes bootTagIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 .screen-boot {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
   background: var(--bg-primary);
   z-index: 100;
-  transition: opacity 0.6s ease-out;
+  overflow: hidden;
+  transition: opacity 0.5s ease-out;
 }
 
 .screen-boot.fade-out {
@@ -72,29 +74,43 @@ html, body {
   pointer-events: none;
 }
 
-.boot-title {
-  font-family: var(--font-mono);
-  font-size: 48px;
-  font-weight: 500;
-  letter-spacing: 12px;
-  color: var(--accent-blue);
-  text-transform: uppercase;
-  margin-bottom: 8px;
+/* Ambient radial glow */
+.boot-ambient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(0, 140, 170, 0.05) 0%, transparent 52%);
+  pointer-events: none;
 }
 
-.boot-subtitle {
+/* Canvas icosahedron centered */
+.boot-canvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: block;
+}
+
+/* Floating status tags — scattered around the geometry */
+.boot-tag {
+  position: absolute;
   font-family: var(--font-mono);
-  font-size: 14px;
-  letter-spacing: 4px;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.boot-tag-1 { top: 26%; left: 7%;    animation: bootTagIn 0.4s ease 0.50s forwards; }
+.boot-tag-2 { top: 24%; right: 7%;   animation: bootTagIn 0.4s ease 0.90s forwards; }
+.boot-tag-3 { bottom: 26%; left: 7%; animation: bootTagIn 0.4s ease 1.30s forwards; }
+.boot-tag-4 {
+  bottom: 24%; right: 7%;
+  animation: bootTagIn 0.4s ease 1.80s forwards;
   color: var(--text-secondary);
-  text-transform: uppercase;
-}
-
-.boot-line {
-  width: 200px;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--accent-blue), transparent);
-  margin: 16px 0;
+  letter-spacing: 3px;
 }
 
 /* ============================================================
@@ -922,6 +938,88 @@ input[type="range"]::-moz-range-thumb {
 
 .seed-input::placeholder {
   color: var(--text-dim);
+}
+
+/* ============================================================
+   Scenario Locked flash overlay
+   ============================================================ */
+.screen-scenario-locked {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.screen-scenario-locked.active {
+  opacity: 1;
+}
+
+.screen-scenario-locked.fade-out {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.locked-primary {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+}
+
+.locked-secondary {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   Run loading — percentage counter
+   ============================================================ */
+.loading-percent {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: var(--accent-blue);
+  margin-bottom: 24px;
+  opacity: 0.9;
+}
+
+/* ============================================================
+   Reset loading — status text only, no progress bar
+   ============================================================ */
+.screen-loading-reset .reset-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.reset-primary {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 3px;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.reset-secondary {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--text-dim);
+  text-transform: uppercase;
 }
 
 /* ============================================================

@@ -83,10 +83,32 @@ function handleItemLeave(e) {
   }
 }
 
+function showScenarioLockedFlash(callback) {
+  const flash = document.createElement('div');
+  flash.className = 'screen-scenario-locked';
+  flash.innerHTML = `
+    <div class="locked-primary">// SCENARIO CONFIRMED</div>
+    <div class="locked-secondary">ENTERING OPERATIONAL THEATER</div>
+  `;
+  document.body.appendChild(flash);
+
+  requestAnimationFrame(() => flash.classList.add('active'));
+
+  // Trigger transition partway through, let flash fade out over the dashboard appearing
+  setTimeout(() => {
+    callback();
+    setTimeout(() => {
+      flash.classList.add('fade-out');
+      setTimeout(() => flash.remove(), 400);
+    }, 50);
+  }, 350);
+}
+
 function handleConfirm() {
   if (!selectedBlue || !selectedRed) return;
-  // jump directly to dashboard; loading only used later
-  transition(STATES.DASHBOARD, { blueKey: selectedBlue, redKey: selectedRed });
+  showScenarioLockedFlash(() => {
+    transition(STATES.DASHBOARD, { blueKey: selectedBlue, redKey: selectedRed });
+  });
 }
 
 export function renderSelect(container) {
@@ -98,7 +120,8 @@ export function renderSelect(container) {
   el.innerHTML = `
     <div class="dot-grid"></div>
     <div class="select-header">
-      <h1>SHIELD</h1>
+      <h1>Strategic Homeland Intercept Evaluation<br>
+      and Layered Defense Model</h1>
       <div class="tagline">Select scenario parameters</div>
     </div>
     <div class="select-body">
