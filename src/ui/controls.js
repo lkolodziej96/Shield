@@ -155,73 +155,41 @@ export function setSLSVisibility() {
 
 /**
  * Read all parameter values from the UI form inputs.
+ * Works with both old flat UI (getElementById) and new dashboard UI (data-param attributes).
+ * @param {string} blueKey - Optional country key for defender
+ * @param {string} redKey - Optional country key for attacker
  */
-export function readParamsFromUI() {
-  const nMissiles = Math.max(
-    0,
-    parseInt(document.getElementById("nMissiles").value, 10) || 0
-  );
-  const mirvsPerMissile = Math.max(
-    1,
-    parseInt(document.getElementById("mirvsPerMissile").value, 10) || 1
-  );
-  const decoysPerWarhead = Math.max(
-    0,
-    parseInt(document.getElementById("decoysPerWarhead").value, 10) || 0
-  );
+export function readParamsFromUI(blueKey, redKey) {
+  const getValue = (id, param, defaultVal) => {
+    let el = document.getElementById(id);
+    if (!el) el = document.querySelector(`[data-param="${param}"]`);
+    return el?.value || defaultVal;
+  };
 
-  const pDetectTrack = clamp01(
-    parseFloat(document.getElementById("pDetectTrack").value) || 0
-  );
+  const nMissiles = Math.max(0, parseInt(getValue("nMissiles", "nMissiles", 0), 10) || 0);
+  const mirvsPerMissile = Math.max(1, parseInt(getValue("mirvsPerMissile", "mirvsPerMissile", 1), 10) || 1);
+  const decoysPerWarhead = Math.max(0, parseInt(getValue("decoysPerWarhead", "decoysPerWarhead", 0), 10) || 0);
 
-  const pClassifyWarhead = clamp01(
-    parseFloat(document.getElementById("pClassifyWarhead").value) || 0
-  );
-  const pFalseAlarmDecoy = clamp01(
-    parseFloat(document.getElementById("pFalseAlarmDecoy").value) || 0
-  );
+  const pDetectTrack = clamp01(parseFloat(getValue("pDetectTrack", "pDetectTrack", 0.8)) || 0);
+  const pClassifyWarhead = clamp01(parseFloat(getValue("pClassifyWarhead", "pClassifyWarhead", 0.8)) || 0);
+  const pFalseAlarmDecoy = clamp01(parseFloat(getValue("pFalseAlarmDecoy", "pFalseAlarmDecoy", 0.2)) || 0);
 
-  const doctrineMode = document.getElementById("doctrineMode").value;
+  const doctrineMode = getValue("doctrineMode", "doctrineMode", "barrage");
+  const shotsPerTarget = Math.max(0, parseInt(getValue("shotsPerTarget", "shotsPerTarget", 0), 10) || 0);
+  const maxShotsPerTarget = Math.max(0, parseInt(getValue("maxShotsPerTarget", "maxShotsPerTarget", 0), 10) || 0);
+  const pReengage = clamp01(parseFloat(getValue("pReengage", "pReengage", 0.85)) || 0);
 
-  const shotsPerTarget = Math.max(
-    0,
-    parseInt(document.getElementById("shotsPerTarget").value, 10) || 0
-  );
-  const maxShotsPerTarget = Math.max(
-    0,
-    parseInt(document.getElementById("maxShotsPerTarget").value, 10) || 0
-  );
-  const pReengage = clamp01(
-    parseFloat(document.getElementById("pReengage").value) || 0
-  );
+  const pkWarhead = clamp01(parseFloat(getValue("pkWarhead", "pkWarhead", 0.6)) || 0);
+  const pkDecoy = clamp01(parseFloat(getValue("pkDecoy", "pkDecoy", 0.8)) || 0);
 
-  const pkWarhead = clamp01(
-    parseFloat(document.getElementById("pkWarhead").value) || 0
-  );
-  const pkDecoy = clamp01(
-    parseFloat(document.getElementById("pkDecoy").value) || 0
-  );
+  const nInventory = Math.max(0, parseInt(getValue("nInventory", "nInventory", 0), 10) || 0);
+  const nTrials = Math.max(1, parseInt(getValue("nTrials", "nTrials", 1000), 10) || 1000);
 
-  const nInventory = Math.max(
-    0,
-    parseInt(document.getElementById("nInventory").value, 10) || 0
-  );
-  const nTrials = Math.max(
-    1,
-    parseInt(document.getElementById("nTrials").value, 10) || 1000
-  );
+  const pSystemUp = clamp01(parseFloat(getValue("pSystemUp", "pSystemUp", 0.9)) || 0);
+  const detectDegradeFactor = clamp01(parseFloat(getValue("detectDegradeFactor", "detectDegradeFactor", 0.5)) || 0);
+  const pkDegradeFactor = clamp01(parseFloat(getValue("pkDegradeFactor", "pkDegradeFactor", 0.7)) || 0);
 
-  const pSystemUp = clamp01(
-    parseFloat(document.getElementById("pSystemUp").value) || 0
-  );
-  const detectDegradeFactor = clamp01(
-    parseFloat(document.getElementById("detectDegradeFactor").value) || 0
-  );
-  const pkDegradeFactor = clamp01(
-    parseFloat(document.getElementById("pkDegradeFactor").value) || 0
-  );
-
-  const seedVal = document.getElementById("seed").value.trim();
+  const seedVal = (getValue("seed", "seed", "").trim());
   const seed = seedVal === "" ? null : parseInt(seedVal, 10) || 0;
 
   return {
@@ -243,5 +211,125 @@ export function readParamsFromUI() {
     detectDegradeFactor,
     pkDegradeFactor,
     seed,
+    blueKey,
+    redKey,
   };
+}
+
+/**
+ * Render the dashboard drawer controls panel (tabs for Blue, Red, CM, Sim).
+ */
+export function renderDrawerControls(container, blueKey, redKey) {
+  const d = readParamsFromUI();
+  
+  container.innerHTML = `
+    <div class="tab-panel active" id="tab-blue">
+      <div class="panel-section">
+        <h4>Blue (Defender)</h4>
+        <p>${blueKey}</p>
+        <div class="param-group">
+          <label>
+            Detection + Tracking P:
+            <input type="number" class="param-input" data-param="pDetectTrack" min="0" max="1" step="0.01" value="${d.pDetectTrack}" />
+          </label>
+          <label>
+            Classifier TPR (W→W):
+            <input type="number" class="param-input" data-param="pClassifyWarhead" min="0" max="1" step="0.01" value="${d.pClassifyWarhead}" />
+          </label>
+          <label>
+            Classifier FPR (D→W):
+            <input type="number" class="param-input" data-param="pFalseAlarmDecoy" min="0" max="1" step="0.01" value="${d.pFalseAlarmDecoy}" />
+          </label>
+          <label>
+            Pk per shot (warhead):
+            <input type="number" class="param-input" data-param="pkWarhead" min="0" max="1" step="0.01" value="${d.pkWarhead}" />
+          </label>
+          <label>
+            Pk per shot (decoy):
+            <input type="number" class="param-input" data-param="pkDecoy" min="0" max="1" step="0.01" value="${d.pkDecoy}" />
+          </label>
+          <label>
+            Interceptor Inventory:
+            <input type="number" class="param-input" data-param="nInventory" min="0" step="1" value="${d.nInventory}" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-red">
+      <div class="panel-section">
+        <h4>Red (Attacker)</h4>
+        <p>${redKey}</p>
+        <div class="param-group">
+          <label>
+            Missiles:
+            <input type="number" class="param-input" data-param="nMissiles" min="1" step="1" value="${d.nMissiles}" />
+          </label>
+          <label>
+            MIRVs per Missile:
+            <input type="number" class="param-input" data-param="mirvsPerMissile" min="1" step="1" value="${d.mirvsPerMissile}" />
+          </label>
+          <label>
+            Decoys per Warhead:
+            <input type="number" class="param-input" data-param="decoysPerWarhead" min="0" step="1" value="${d.decoysPerWarhead}" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-cm">
+      <div class="panel-section">
+        <h4>Common Mode (Reliability)</h4>
+        <div class="param-group">
+          <label>
+            P(System Up):
+            <input type="number" class="param-input" data-param="pSystemUp" min="0" max="1" step="0.01" value="${d.pSystemUp}" />
+          </label>
+          <label>
+            Detect Degrade Factor:
+            <input type="number" class="param-input" data-param="detectDegradeFactor" min="0" max="1" step="0.01" value="${d.detectDegradeFactor}" />
+          </label>
+          <label>
+            Pk Degrade Factor:
+            <input type="number" class="param-input" data-param="pkDegradeFactor" min="0" max="1" step="0.01" value="${d.pkDegradeFactor}" />
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-sim">
+      <div class="panel-section">
+        <h4>Simulation</h4>
+        <div class="param-group">
+          <label>
+            Doctrine Mode:
+            <select class="param-input" data-param="doctrineMode">
+              <option value="barrage" ${d.doctrineMode === 'barrage' ? 'selected' : ''}>Barrage</option>
+              <option value="sls" ${d.doctrineMode === 'sls' ? 'selected' : ''}>Shoot-Look-Shoot</option>
+            </select>
+          </label>
+          <label>
+            Shots/Track (Barrage):
+            <input type="number" class="param-input" data-param="shotsPerTarget" min="0" step="1" value="${d.shotsPerTarget}" />
+          </label>
+          <label>
+            Max Shots/Track (SLS):
+            <input type="number" class="param-input" data-param="maxShotsPerTarget" min="0" step="1" value="${d.maxShotsPerTarget}" />
+          </label>
+          <label>
+            P(Re-engage):
+            <input type="number" class="param-input" data-param="pReengage" min="0" max="1" step="0.01" value="${d.pReengage}" />
+          </label>
+          <label>
+            Monte Carlo Trials:
+            <input type="number" class="param-input" data-param="nTrials" min="1" step="100" value="${d.nTrials}" />
+          </label>
+          <label>
+            Seed (blank=random):
+            <input type="number" class="param-input" data-param="seed" step="1" value="${d.seed || ''}" />
+          </label>
+        </div>
+      </div>
+    </div>
+  `;
 }

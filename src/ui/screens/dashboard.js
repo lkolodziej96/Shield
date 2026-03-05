@@ -9,7 +9,6 @@ import { initGlobe, startAnimation, stopAnimation, getGlobeGroup, getScene, disp
 import { createCountriesLayer, setHighlightedCountries } from '../globe/countriesLayer.js';
 import { createHudOverlay } from '../globe/hudOverlay.js';
 import { renderDrawerControls, readParamsFromUI } from '../controls.js';
-import { runMonteCarlo } from '../../model/monteCarlo.js';
 import { renderResultsContent } from '../results.js';
 import { renderLoading } from './loading.js';
 
@@ -108,6 +107,13 @@ export function renderDashboard(container) {
     redKey
   );
 
+  // if stateData includes runResult, show it immediately
+  const sd = getStateData();
+  if (sd.runResult) {
+    lastResult = sd.runResult;
+    showResults(sd.runParams, sd.runResult, sd.runElapsed);
+  }
+
   // Wire events
   wireEvents();
 
@@ -130,15 +136,13 @@ function wireEvents() {
     });
   });
 
-  // Run button
+  // Run button triggers loading state; simulation will execute after animation
   el.querySelector('#btnRun').addEventListener('click', handleRun);
 
-  // Reset button
+  // Reset button also goes through loading, dispose globe immediately
   el.querySelector('#btnReset').addEventListener('click', () => {
     disposeGlobe();
-    el.remove();
-    el = null;
-    transition(STATES.SELECT);
+    transition(STATES.LOADING, { action: 'reset' });
   });
 
   // Results toggle
@@ -150,6 +154,23 @@ function wireEvents() {
   el.querySelector('#btnCloseResults').addEventListener('click', () => {
     el.querySelector('#resultsOverlay').classList.remove('open');
   });
+}
+
+/**
+ * Update the dashboard UI after a simulation run completes.
+ */
+function showResults(params, result, elapsed) {
+  const status = el.querySelector('#simStatus');
+  status.textContent = 'COMPLETE';
+  status.style.color = 'var(--accent-green)';
+
+  el.querySelector('#runInfo').textContent = `${params.nTrials} trials in ${elapsed}s`;
+
+  const resultsBody = el.querySelector('#resultsBody');
+  resultsBody.innerHTML = renderResultsContent(params, result);
+
+  el.querySelector('#resultsOverlay').classList.add('open');
+  el.querySelector('#btnResults').classList.add('has-data');
 }
 
 function animatePhases(callback) {
@@ -176,33 +197,8 @@ function animatePhases(callback) {
 }
 
 function handleRun() {
-  const status = el.querySelector('#simStatus');
-  status.textContent = 'RUNNING...';
-  status.style.color = 'var(--accent-amber)';
-
-  animatePhases(() => {
-    // Read params and run simulation
-    const params = readParamsFromUI(blueKey, redKey);
-
-    const t0 = performance.now();
-    lastResult = runMonteCarlo(params);
-    const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
-
-    // Update status
-    status.textContent = 'COMPLETE';
-    status.style.color = 'var(--accent-green)';
-
-    // Update run info
-    el.querySelector('#runInfo').textContent = `${params.nTrials} trials in ${elapsed}s`;
-
-    // Render results
-    const resultsBody = el.querySelector('#resultsBody');
-    resultsBody.innerHTML = renderResultsContent(params, lastResult);
-
-    // Open results panel and mark button
-    el.querySelector('#resultsOverlay').classList.add('open');
-    el.querySelector('#btnResults').classList.add('has-data');
-  });
+  const params = readParamsFromUI(blueKey, redKey);
+  transition(STATES.LOADING, { action: 'run', params, blueKey, redKey });
 }
 
 export function removeDashboard() {

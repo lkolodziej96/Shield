@@ -85,7 +85,8 @@ function handleItemLeave(e) {
 
 function handleConfirm() {
   if (!selectedBlue || !selectedRed) return;
-  transition(STATES.LOADING, { blueKey: selectedBlue, redKey: selectedRed });
+  // jump directly to dashboard; loading only used later
+  transition(STATES.DASHBOARD, { blueKey: selectedBlue, redKey: selectedRed });
 }
 
 export function renderSelect(container) {

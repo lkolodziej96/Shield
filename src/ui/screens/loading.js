@@ -9,6 +9,11 @@ const MESSAGES = [
   'READY',
 ];
 
+/**
+ * Render loading interstitial.  Calls onComplete when animation finishes.
+ * @param {HTMLElement} container
+ * @param {Function} onComplete
+ */
 export function renderLoading(container, onComplete) {
   const el = document.createElement('div');
   el.className = 'screen-loading';
