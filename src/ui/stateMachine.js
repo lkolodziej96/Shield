@@ -1,10 +1,16 @@
 /**
- * UI State Machine — manages screen transitions.
- * States: BOOT → SELECT → LOADING → DASHBOARD
- *         DASHBOARD → SELECT (reset)
+ * UI State Machine
+ * Wizard flow: BOOT → SELECT → CONFIGURE_BLUE → CONFIGURE_RED → CALCULATING → RESULTS
  */
 
-const STATES = { BOOT: 'boot', SELECT: 'select', LOADING: 'loading', DASHBOARD: 'dashboard' };
+const STATES = {
+  BOOT:           'boot',
+  SELECT:         'select',
+  CONFIGURE_BLUE: 'configure_blue',
+  CONFIGURE_RED:  'configure_red',
+  CALCULATING:    'calculating',
+  RESULTS:        'results',
+};
 
 let currentState = null;
 let stateData = {};
