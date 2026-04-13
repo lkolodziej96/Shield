@@ -1,10 +1,11 @@
 /**
- * Countries layer — renders world coastlines and highlighted countries on the globe.
- * Uses Canvas2D texture projected onto a Three.js sphere.
+ * Countries layer — renders world country borders on a Canvas2D texture
+ * projected onto a Three.js sphere. Fetches real Natural Earth TopoJSON data
+ * for accurate boundaries.
  */
 
 import * as THREE from 'three';
-import { COUNTRY_POLYGONS, WORLD_COASTLINES } from './geoData.js';
+import { loadGeoData, getAllCountries, getCountryByKey } from './geoData.js';
 
 const TEX_W = 2048;
 const TEX_H = 1024;
@@ -12,31 +13,35 @@ const GLOBE_RADIUS = 180;
 
 let canvas, ctx, texture, sphereMesh;
 let highlightedCountries = new Set();
+let dataReady = false;
 
-/**
- * Convert [lng, lat] to canvas pixel coordinates (equirectangular).
- */
 function toPixel(lng, lat) {
   const x = ((lng + 180) / 360) * TEX_W;
   const y = ((90 - lat) / 180) * TEX_H;
   return [x, y];
 }
 
-/**
- * Draw a polygon on the canvas.
- */
 function drawPolygon(points, opts = {}) {
   if (!points || points.length < 3) return;
+
+  let prevX = null;
   ctx.beginPath();
-  const [x0, y0] = toPixel(points[0][0], points[0][1]);
-  ctx.moveTo(x0, y0);
-  for (let i = 1; i < points.length; i++) {
+  for (let i = 0; i < points.length; i++) {
     const [x, y] = toPixel(points[i][0], points[i][1]);
-    ctx.lineTo(x, y);
+    if (i > 0 && prevX !== null && Math.abs(x - prevX) > TEX_W * 0.5) {
+      if (opts.stroke) ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    } else if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+    prevX = x;
   }
-  ctx.closePath();
 
   if (opts.fill) {
+    ctx.closePath();
     ctx.fillStyle = opts.fill;
     ctx.fill();
   }
@@ -47,56 +52,21 @@ function drawPolygon(points, opts = {}) {
   }
 }
 
-/**
- * Render the full texture.
- */
 function renderTexture() {
-  // Clear to dark
-  ctx.fillStyle = '#0a0a0f';
+  if (!ctx) return;
+
+  ctx.fillStyle = '#080810';
   ctx.fillRect(0, 0, TEX_W, TEX_H);
 
-  // Dot grid
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.02)';
   for (let x = 0; x < TEX_W; x += 32) {
     for (let y = 0; y < TEX_H; y += 32) {
       ctx.fillRect(x, y, 1, 1);
     }
   }
 
-  // Draw world coastlines (faint)
-  for (const coastline of WORLD_COASTLINES) {
-    drawPolygon(coastline, {
-      stroke: 'rgba(200, 220, 255, 0.18)',
-      lineWidth: 1.5,
-    });
-  }
-
-  // Draw country outlines and fills
-  for (const [key, data] of Object.entries(COUNTRY_POLYGONS)) {
-    const isHighlighted = highlightedCountries.has(key);
-
-    for (const poly of data.polygons) {
-      if (isHighlighted) {
-        // Glow fill
-        const [r, g, b] = data.color;
-        drawPolygon(poly, {
-          fill: `rgba(${r * 255}, ${g * 255}, ${b * 255}, 0.25)`,
-          stroke: `rgba(${r * 255}, ${g * 255}, ${b * 255}, 0.8)`,
-          lineWidth: 2,
-        });
-      } else {
-        drawPolygon(poly, {
-          stroke: 'rgba(200, 220, 255, 0.2)',
-          lineWidth: 1,
-        });
-      }
-    }
-  }
-
-  // Graticule lines (faint)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
   ctx.lineWidth = 0.5;
-  // Latitude lines every 30 degrees
   for (let lat = -60; lat <= 60; lat += 30) {
     ctx.beginPath();
     const y = ((90 - lat) / 180) * TEX_H;
@@ -104,7 +74,6 @@ function renderTexture() {
     ctx.lineTo(TEX_W, y);
     ctx.stroke();
   }
-  // Longitude lines every 30 degrees
   for (let lng = -150; lng <= 180; lng += 30) {
     ctx.beginPath();
     const x = ((lng + 180) / 360) * TEX_W;
@@ -113,12 +82,37 @@ function renderTexture() {
     ctx.stroke();
   }
 
-  texture.needsUpdate = true;
+  if (!dataReady) {
+    if (texture) texture.needsUpdate = true;
+    return;
+  }
+
+  const countries = getAllCountries();
+
+  for (const country of countries) {
+    const isHighlighted = highlightedCountries.has(country.key);
+
+    for (const poly of country.polygons) {
+      if (isHighlighted) {
+        const [r, g, b] = country.color;
+        drawPolygon(poly, {
+          fill: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.25)`,
+          stroke: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, 0.85)`,
+          lineWidth: 2,
+        });
+      } else {
+        drawPolygon(poly, {
+          fill: 'rgba(200, 220, 255, 0.03)',
+          stroke: 'rgba(200, 220, 255, 0.18)',
+          lineWidth: 0.8,
+        });
+      }
+    }
+  }
+
+  if (texture) texture.needsUpdate = true;
 }
 
-/**
- * Create the globe sphere with the canvas texture.
- */
 export function createCountriesLayer(globeGroup) {
   canvas = document.createElement('canvas');
   canvas.width = TEX_W;
@@ -139,13 +133,12 @@ export function createCountriesLayer(globeGroup) {
   sphereMesh = new THREE.Mesh(geometry, material);
   globeGroup.add(sphereMesh);
 
-  // Atmospheric rim halo — soft blue glow at edges
   const atmGeometry = new THREE.SphereGeometry(GLOBE_RADIUS * 1.05, 64, 48);
   const atmMaterial = new THREE.MeshBasicMaterial({
     color: 0x003366,
     side: THREE.BackSide,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0.35,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   });
@@ -153,12 +146,20 @@ export function createCountriesLayer(globeGroup) {
   globeGroup.add(atmMesh);
 
   renderTexture();
+
+  loadGeoData().then(() => {
+    dataReady = true;
+    renderTexture();
+  });
+
   return sphereMesh;
 }
 
-/**
- * Highlight a country (or remove highlight).
- */
+export function setHighlightedCountries(keys) {
+  highlightedCountries = new Set(keys);
+  renderTexture();
+}
+
 export function highlightCountry(countryKey) {
   highlightedCountries.add(countryKey);
   renderTexture();
@@ -174,18 +175,9 @@ export function clearHighlights() {
   renderTexture();
 }
 
-export function setHighlightedCountries(keys) {
-  highlightedCountries = new Set(keys);
-  renderTexture();
-}
-
-/**
- * Get the approximate center longitude for a country (for camera rotation).
- */
 export function getCountryCenter(key) {
-  const data = COUNTRY_POLYGONS[key];
-  if (!data) return 0;
-  // Average longitude of first polygon
+  const data = getCountryByKey(key);
+  if (!data || !data.polygons.length) return 0;
   const poly = data.polygons[0];
   let sumLng = 0;
   for (const [lng] of poly) sumLng += lng;

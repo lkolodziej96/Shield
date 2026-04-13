@@ -4,8 +4,10 @@
  */
 
 import { STATES, transition } from '../stateMachine.js';
+import { loadGeoData } from '../globe/geoData.js';
 
 export function renderBoot(container) {
+  loadGeoData();
   const el = document.createElement('div');
   el.className = 'screen-boot';
   el.innerHTML = `
