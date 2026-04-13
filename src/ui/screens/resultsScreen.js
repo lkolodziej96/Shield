@@ -5,6 +5,10 @@
 import { STATES, transition, getStateData } from '../stateMachine.js';
 import { formatCostB, computeConstellationCost } from '../../utils/costCalc.js';
 import { ARCHITECTURE_BENCHMARKS, WHITEHOUSE_CLAIM } from '../../../data/architecture_benchmarks.js';
+import { buildDistributionHistogram } from '../charts/distributionChart.js';
+import { buildWaterfallChart } from '../charts/waterfallChart.js';
+import { buildCostEffectivenessPanel } from '../charts/costEffectiveness.js';
+import { buildSensitivityAnalysis } from '../charts/sensitivityChart.js';
 
 let el = null;
 let activeTab = 'results';
@@ -263,16 +267,17 @@ function downloadCsv(result, wizardState) {
 function switchTab(tab) {
   activeTab = tab;
   el.querySelectorAll('.wizard-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-  const resultsPanel = el.querySelector('#tab-results');
-  const costPanel = el.querySelector('#tab-cost');
-  if (resultsPanel) resultsPanel.style.display = tab === 'results' ? '' : 'none';
-  if (costPanel) costPanel.style.display = tab === 'cost' ? '' : 'none';
+  el.querySelectorAll('.results-tab-panel').forEach(p => {
+    p.style.display = p.id === `tab-${tab}` ? '' : 'none';
+  });
 }
 
 export function renderResults(container) {
   const state = getStateData();
   const result = state.result;
+  const rawTrials = state.rawTrials;
   const wizardState = state.wizardState;
+  const params = state.params;
 
   el = document.createElement('div');
   el.className = 'results-screen';
@@ -289,6 +294,7 @@ export function renderResults(container) {
       <div class="results-title">SIMULATION RESULTS</div>
       <div class="results-tabs">
         <button class="wizard-tab active" data-tab="results">Results</button>
+        <button class="wizard-tab" data-tab="analysis">Analysis</button>
         <button class="wizard-tab" data-tab="cost">Cost Comparison</button>
       </div>
       ${buildCsvExport(result, wizardState)}
@@ -300,6 +306,15 @@ export function renderResults(container) {
         ${buildConfidenceBand(result)}
         ${buildMetricsTable(result)}
         ${buildConfigSummary(wizardState)}
+      </div>
+      <div id="tab-analysis" class="results-tab-panel" style="display:none">
+        ${buildWaterfallChart(result)}
+        ${buildDistributionHistogram(rawTrials, result)}
+        ${buildCostEffectivenessPanel(result, wizardState)}
+        <div id="sensitivity-placeholder" class="sensitivity-loading">
+          <div class="wizard-section-label">SENSITIVITY ANALYSIS</div>
+          <div class="analysis-subtitle">Computing parameter sweeps...</div>
+        </div>
       </div>
       <div id="tab-cost" class="results-tab-panel" style="display:none">
         ${buildCostComparison(wizardState)}
@@ -316,9 +331,23 @@ export function renderResults(container) {
 
   container.appendChild(el);
 
+  let sensitivityLoaded = false;
+
   el.addEventListener('click', (e) => {
     const tab = e.target.closest('.wizard-tab');
-    if (tab) { switchTab(tab.dataset.tab); return; }
+    if (tab) {
+      switchTab(tab.dataset.tab);
+      if (tab.dataset.tab === 'analysis' && !sensitivityLoaded && params) {
+        sensitivityLoaded = true;
+        setTimeout(() => {
+          const placeholder = el.querySelector('#sensitivity-placeholder');
+          if (placeholder) {
+            placeholder.outerHTML = buildSensitivityAnalysis(params);
+          }
+        }, 50);
+      }
+      return;
+    }
 
     if (e.target.closest('.wizard-back')) {
       transition(STATES.SELECT, {});

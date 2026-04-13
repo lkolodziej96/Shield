@@ -11,10 +11,12 @@ import { renderConfigureRed } from './ui/screens/configureRed.js';
 import { renderCalculating } from './ui/screens/calculating.js';
 import { renderResults } from './ui/screens/resultsScreen.js';
 import { runMonteCarlo } from './model/monteCarlo.js';
+import { disposeGlobe } from './ui/globe/globeCore.js';
 
 const container = document.getElementById('app');
 
 onStateChange((newState, prevState, data) => {
+  disposeGlobe();
   container.innerHTML = '';
 
   switch (newState) {
@@ -38,9 +40,13 @@ onStateChange((newState, prevState, data) => {
       const label = `Modeling ${data.salvoLabel ?? 'attack scenario'} vs. ${data.defenseLabel ?? 'US defense'}`;
       renderCalculating(container, label, () => {
         const t0 = performance.now();
-        const result = runMonteCarlo(data.params);
+        const mc = runMonteCarlo(data.params);
         const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
-        transition(STATES.RESULTS, { result, elapsed });
+        transition(STATES.RESULTS, {
+          result: mc.summary,
+          rawTrials: mc,
+          elapsed,
+        });
       });
       break;
     }
